@@ -31,6 +31,7 @@
     - 5.2 [如何接收通知？](#52-如何接收通知)
     - 5.3 [如何修改执行时间？](#53-如何修改执行时间)
     - 5.4 [可以配置多个账号吗？](#54-可以配置多个账号吗)
+    - 5.5 [为什么定时任务被停用？](#55-为什么定时任务被停用)
 6. [许可证](#6-许可证)
 7. [微信公众号](#7-微信公众号)
 8. [赞赏](#8-赞赏)
@@ -117,7 +118,6 @@ user3@example.com:password3
 
 
 
-<<<<<<< HEAD
 ![添加Secrets](./img/image-20240926213937401.png)
 ![image-20250807033325755](./img/image-20250807033325755.png)
 
@@ -182,7 +182,7 @@ user3@example.com:password3
 ## 4. 定时任务说明
 脚本默认在以下时间执行：
 - 北京时间：7:40 和 21:40
-- UTC时间：23:40 和 13:40（对应北京时间次日7:40和21:40）
+- GitHub Actions 工作流直接使用 `Asia/Shanghai` 时区，无需手动换算 UTC
 
 ---
 
@@ -215,6 +215,12 @@ user3@example.com:password3
    - 设置 `ABLESCI_ACCOUNTS` Secret
    - 格式：`邮箱1:密码1[换行]邮箱2:密码2`
 3. 脚本会自动处理所有账号并发送汇总通知
+
+### 5.5 为什么定时任务被停用？
+
+[GitHub 官方文档](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)说明，公开仓库连续 60 天没有仓库活动时，定时工作流会被自动停用。本仓库包含一个低频保活工作流：它每周检查一次，并且只在最后一次提交已超过 45 天时创建空提交，从而避免签到任务再次因闲置而停用。
+
+如果工作流已经被停用，提交一次对 `.github/workflows/ablesciSign.yml` 定时配置的修改即可重新激活；也可以进入仓库的 **Actions** 页面，选择 **AbleSci Auto Sign** 后点击 **Enable workflow**。
 
 ---
 

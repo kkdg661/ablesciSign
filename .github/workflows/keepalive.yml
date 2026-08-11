@@ -1,0 +1,40 @@
+name: Keep Scheduled Workflows Active
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keep-scheduled-workflows-active
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Create activity when the repository has been idle for 45 days
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          last_commit_timestamp=$(git log -1 --format=%ct)
+          current_timestamp=$(date +%s)
+          idle_days=$(( (current_timestamp - last_commit_timestamp) / 86400 ))
+
+          if (( idle_days < 45 )); then
+            echo "Repository has been idle for ${idle_days} days; no keepalive commit is needed."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: keep scheduled workflows active"
+          git push
