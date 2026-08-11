@@ -13,6 +13,7 @@ AbleSci自动签到脚本
 """
 
 import os
+import re
 import sys
 import time
 import requests
@@ -37,6 +38,16 @@ except ImportError:
 
 # 环境变量名常量
 ENV_ACCOUNTS = "ABLESCI_ACCOUNTS"
+EMAIL_PATTERN = (
+    r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@"
+    r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+"
+)
+ACCOUNT_PATTERN = re.compile(
+    rf"(?P<email>{EMAIL_PATTERN})\s*(?:[:：|,=]|[ \t]+)\s*(?P<password>.+?)"
+    rf"(?=(?:[;,]|\r?\n)\s*{EMAIL_PATTERN}\s*(?:[:：|,=]|[ \t]+)|\s*$)",
+    re.DOTALL,
+)
 
 def load_env_file():
     """
@@ -398,43 +409,19 @@ def get_accounts():
     accounts_env = os.getenv(ENV_ACCOUNTS)
     if not accounts_env:
         return []
-    
-    accounts = []
-    # 支持换行符、分号、逗号分隔
-    for line in accounts_env.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if ";" in line:
-            accounts.extend(line.split(";"))
-        elif "," in line:
-            accounts.extend(line.split(","))
-        else:
-            accounts.append(line)
-    
+
     valid_accounts = []
-    for index, account in enumerate(accounts, 1):
-        account = account.strip()
-        if not account:
-            continue
-        # 支持邮箱和密码用冒号、分号或竖线分隔
-        if ":" in account:
-            email, password = account.split(":", 1)
-        elif ";" in account:
-            email, password = account.split(";", 1)
-        elif "|" in account:
-            email, password = account.split("|", 1)
-        else:
-            print(f"警告：跳过第 {index} 个格式错误的账号项")
-            continue
-            
-        email = email.strip()
-        password = password.strip()
+    for match in ACCOUNT_PATTERN.finditer(accounts_env.strip()):
+        email = match.group("email").strip()
+        password = match.group("password").strip()
         if email and password:
             valid_accounts.append((email, password))
-        else:
-            print(f"警告：第 {index} 个账号的邮箱或密码为空")
-    
+
+    if not valid_accounts:
+        nonempty_lines = sum(bool(line.strip()) for line in accounts_env.splitlines())
+        item_count = max(nonempty_lines, 1)
+        print(f"警告：检测到 {item_count} 个配置条目，但没有可识别的邮箱和密码组合")
+
     return valid_accounts
 
 def main():

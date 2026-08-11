@@ -45,6 +45,42 @@ class AccountParsingTests(unittest.TestCase):
         self.assertNotIn("user@example.com", output.getvalue())
         self.assertNotIn("very-secret-password", output.getvalue())
 
+    def test_common_account_formats_are_supported(self):
+        secret = (
+            "colon@example.com:colon-password\n"
+            "wide@example.com：wide-password\n"
+            "comma@example.com,comma-password;"
+            "equals@example.com=equals-password\n"
+            "pipe@example.com|pipe-password\n"
+            "space@example.com space-password"
+        )
+
+        with patch.dict(os.environ, {ablesci.ENV_ACCOUNTS: secret}, clear=False):
+            accounts = ablesci.get_accounts()
+
+        self.assertEqual(
+            accounts,
+            [
+                ("colon@example.com", "colon-password"),
+                ("wide@example.com", "wide-password"),
+                ("comma@example.com", "comma-password"),
+                ("equals@example.com", "equals-password"),
+                ("pipe@example.com", "pipe-password"),
+                ("space@example.com", "space-password"),
+            ],
+        )
+
+    def test_password_may_contain_punctuation(self):
+        secret = "user@example.com:p:a,ss=word|with;punctuation"
+
+        with patch.dict(os.environ, {ablesci.ENV_ACCOUNTS: secret}, clear=False):
+            accounts = ablesci.get_accounts()
+
+        self.assertEqual(
+            accounts,
+            [("user@example.com", "p:a,ss=word|with;punctuation")],
+        )
+
 
 class MainExitStatusTests(unittest.TestCase):
     def setUp(self):
