@@ -221,15 +221,32 @@ class AbleSciAuto:
         self.notifier.log(message, level)
         
     def get_csrf_token(self):
-        """获取CSRF令牌"""
+        """获取CSRF令牌，兼容科研通新旧登录页。"""
         login_url = "https://www.ablesci.com/site/login"
         try:
             response = self.session.get(login_url, headers=self.headers, timeout=30)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
-                csrf_token = soup.find('input', {'name': '_csrf'})
-                if csrf_token:
-                    return csrf_token.get('value', '')
+
+                # 2026-09 登录页改版后，真实令牌位于 meta 标签中；页面上的
+                # data-csrf-field 隐藏输入框由 JavaScript 填充，静态抓取时为空。
+                # 旧版 input[name="_csrf"] 仍作为回退，避免页面回滚或灰度差异。
+                csrf_meta = soup.find('meta', {'name': 'csrf-token'})
+                if csrf_meta:
+                    token = csrf_meta.get('content', '').strip()
+                    if token:
+                        return token
+
+                csrf_input = soup.find('input', {'name': '_csrf'})
+                if csrf_input:
+                    token = csrf_input.get('value', '').strip()
+                    if token:
+                        return token
+
+                self.log(
+                    "CSRF令牌元素未找到（新旧登录页格式均未匹配，页面结构可能再次变化）",
+                    "error",
+                )
             else:
                 self.log(f"获取CSRF令牌失败，状态码: {response.status_code}", "error")
         except Exception as e:

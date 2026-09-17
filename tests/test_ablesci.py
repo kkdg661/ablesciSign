@@ -2,7 +2,7 @@ import contextlib
 import io
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import ablesci
 
@@ -79,6 +79,44 @@ class AccountParsingTests(unittest.TestCase):
         self.assertEqual(
             accounts,
             [("user@example.com", "p:a,ss=word|with;punctuation")],
+        )
+
+
+class CsrfTokenTests(unittest.TestCase):
+    def setUp(self):
+        self.notifier = FakeNotifier("test")
+        self.automator = ablesci.AbleSciAuto(
+            "user@example.com",
+            "not-used",
+            notifier=self.notifier,
+        )
+
+    def set_login_page(self, html, status_code=200):
+        response = Mock(status_code=status_code, text=html)
+        self.automator.session.get = Mock(return_value=response)
+
+    def test_reads_token_from_new_meta_element(self):
+        self.set_login_page(
+            '<meta name="csrf-token" content=" new-token ">'
+            '<input type="hidden" data-csrf-field value="">'
+        )
+
+        self.assertEqual(self.automator.get_csrf_token(), "new-token")
+
+    def test_falls_back_to_legacy_hidden_input(self):
+        self.set_login_page('<input type="hidden" name="_csrf" value="old-token">')
+
+        self.assertEqual(self.automator.get_csrf_token(), "old-token")
+
+    def test_rejects_empty_javascript_csrf_shell(self):
+        self.set_login_page('<input type="hidden" data-csrf-field value="">')
+
+        self.assertEqual(self.automator.get_csrf_token(), "")
+        self.assertTrue(
+            any(
+                level == "error" and "页面结构可能再次变化" in message
+                for message, level in self.notifier.messages
+            )
         )
 
 
